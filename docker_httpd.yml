@@ -1,3 +1,9 @@
+- name: "Configuring Docker Repository and Setting up Docker Engine"
+  hosts: Docker-Engine-Host
+  roles:
+          -  
+
+
 - hosts: all
   tasks:
   - name: "Building SSH Enabled Docker Image"
