@@ -1,11 +1,25 @@
 - name: "Configuring Docker Repository and Setting up Docker Engine"
   hosts: Docker-Engine-Host
   roles:
-          -  
-
-
-- hosts: all
+          - Ansible-Docker-YumRepo-Install-Role
+- name: Creating Dockerfile workspace folder"
+  file:
+          state: directory
+          path: "/root/Dockerfile-workspace/"
+- template:
+        src: "Dockerfile.j2"
+        dest: "/root/Dockerfile-workspace/Dockerfile"
+- hosts: Docker-Engine-Host
+  vars-file:
+          - variable.yml
   tasks:
+  - name: Creating Dockerfile workspace folder"
+    file:
+            state: directory
+            path: "/root/Dockerfile-workspace/"
+  - template:
+        src: "Dockerfile.j2"
+        dest: "/root/Dockerfile-workspace/Dockerfile"
   - name: "Building SSH Enabled Docker Image"
     command: "docker build -t {{ ssh_enabled_docker_image_name }} ."
   - docker_image:
@@ -20,12 +34,13 @@
                 - "80"
         ports:
                 - "{{ exposed_base_os_port }}:80"
+    register: container_info
   - debug:
-          msg: "IP Address of Launched Docker Container: {{ webos.container.NetworkSettings.IPAddress }}"
+          msg: "IP Address of Launched Docker Container: {{ container_info.container.NetworkSettings.IPAddress }}"
   - name: updating inventory
     blockinfile:
        path: "/root/practice/inventory.txt"
        block: |
               [dcont]
-              {{webos['container']['NetworkSettings']['IPAddress']}} ansible_user=root ansible_ssh_pass=redhat
+              {{container_info['container']['NetworkSettings']['IPAddress']}} ansible_user=root ansible_ssh_pass=redhat
               marker: ""
