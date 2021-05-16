@@ -1,37 +1,25 @@
 - hosts: all
   tasks:
-  - copy:
-        src: "/etc/yum.repos.d/docker-ce.repo"
-        dest: "/etc/yum.repos.d/"
-  - package:
-        name: "docker-ce"
-        state: present
-  - service:
-        name: "docker"
-        state: enabled
-  - package:
-        name: "python3"
-        state: present
-  - pip:
-        name: "docker-py >= 1.7.0"
+  - name: "Building SSH Enabled Docker Image"
+    command: "docker build -t {{ ssh_enabled_docker_image_name }} ."
   - docker_image:
-        name: "centos:latest"
+        name: "{{ ssh_enabled_docker_image_name }}"
         source: pull
   - docker_container:
-        name: "httpd_server"
-        image: centos:latest
+        name: "{{ container_name }}"
+        image: "{{ ssh_enabled_docker_image_name }}"
         interactive: yes
         tty: yes
-        command: ["yum install httpd -y","/usr/sbin/httpd"]
-  - file:
-        path: "/root/web_pages_dir"
-        state: directory
-  - copy:
-        src: "/root/ARTH_ANSIBLE/DOCKER_HTTPD/web_page.html"
-        dest: "/root/web_pages_dir"
-        notify: httpd_restart
-  handlers:
-  - name: httpd_restart
-    service:
-            name: "httpd"
-            state: restarted    
+        exposed_ports:
+                - "80"
+        ports:
+                - "{{ exposed_base_os_port }}:80"
+  - debug:
+          msg: "IP Address of Launched Docker Container: {{ webos.container.NetworkSettings.IPAddress }}"
+  - name: updating inventory
+    blockinfile:
+       path: "/root/practice/inventory.txt"
+       block: |
+              [dcont]
+              {{webos['container']['NetworkSettings']['IPAddress']}} ansible_user=root ansible_ssh_pass=redhat
+              marker: ""
