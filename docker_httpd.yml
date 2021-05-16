@@ -1,0 +1,37 @@
+- hosts: all
+  tasks:
+  - copy:
+        src: "/etc/yum.repos.d/docker-ce.repo"
+        dest: "/etc/yum.repos.d/"
+  - package:
+        name: "docker-ce"
+        state: present
+  - service:
+        name: "docker"
+        state: enabled
+  - package:
+        name: "python3"
+        state: present
+  - pip:
+        name: "docker-py >= 1.7.0"
+  - docker_image:
+        name: "centos:latest"
+        source: pull
+  - docker_container:
+        name: "httpd_server"
+        image: centos:latest
+        interactive: yes
+        tty: yes
+        command: ["yum install httpd -y","/usr/sbin/httpd"]
+  - file:
+        path: "/root/web_pages_dir"
+        state: directory
+  - copy:
+        src: "/root/ARTH_ANSIBLE/DOCKER_HTTPD/web_page.html"
+        dest: "/root/web_pages_dir"
+        notify: httpd_restart
+  handlers:
+  - name: httpd_restart
+    service:
+            name: "httpd"
+            state: restarted    
