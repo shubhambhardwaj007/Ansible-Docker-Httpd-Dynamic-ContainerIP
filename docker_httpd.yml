@@ -1,46 +1,59 @@
 - name: "Configuring Docker Repository and Setting up Docker Engine"
-  hosts: Docker-Engine-Host
+  hosts: localhost
+  vars_files:
+          - variable.yml
   roles:
           - Ansible-Docker-YumRepo-Install-Role
-- name: Creating Dockerfile workspace folder"
-  file:
-          state: directory
-          path: "/root/Dockerfile-workspace/"
-- template:
-        src: "Dockerfile.j2"
-        dest: "/root/Dockerfile-workspace/Dockerfile"
-- hosts: Docker-Engine-Host
-  vars-file:
-          - variable.yml
   tasks:
-  - name: Creating Dockerfile workspace folder"
-    file:
-            state: directory
-            path: "/root/Dockerfile-workspace/"
-  - template:
-        src: "Dockerfile.j2"
-        dest: "/root/Dockerfile-workspace/Dockerfile"
-  - name: "Building SSH Enabled Docker Image"
-    command: "docker build -t {{ ssh_enabled_docker_image_name }} ."
-  - docker_image:
-        name: "{{ ssh_enabled_docker_image_name }}"
-        source: pull
-  - docker_container:
-        name: "{{ container_name }}"
-        image: "{{ ssh_enabled_docker_image_name }}"
-        interactive: yes
-        tty: yes
-        exposed_ports:
-                - "80"
-        ports:
-                - "{{ exposed_base_os_port }}:80"
-    register: container_info
-  - debug:
-          msg: "IP Address of Launched Docker Container: {{ container_info.container.NetworkSettings.IPAddress }}"
-  - name: updating inventory
-    blockinfile:
-       path: "/root/practice/inventory.txt"
-       block: |
-              [dcont]
-              {{container_info['container']['NetworkSettings']['IPAddress']}} ansible_user=root ansible_ssh_pass=redhat
-              marker: ""
+          - name: "Creating Dockerfile workspace folder"
+            file:
+                    state: directory
+                    path: "/root/Dockerfile-workspace/"
+          - template:
+                    src: "Dockerfile.j2"
+                    dest: "/root/Dockerfile-workspace/Dockerfile"
+          - name: "Changing to dockerfile directory"
+            command: "cd /root/Dockerfile-workspace/Dockerfile/"
+          - name: "Building SSH Enabled Docker Image"
+            command: "docker build -t {{ ssh_enabled_docker_image_name }} ."
+          - docker_image:
+                  name: "{{ ssh_enabled_docker_image_name }}"
+                  source: pull
+          - docker_container:
+                  name: "{{ container_name }}"
+                  image: "{{ ssh_enabled_docker_image_name }}"
+                  interactive: yes
+                  tty: yes
+                  exposed_ports:
+                          - "80"
+                  ports:
+                          - "{{ exposed_base_os_port }}:80"
+            register: container_info
+          - debug:
+                  msg: "IP Address of Launched Docker Container: {{ container_info.container.NetworkSettings.IPAddress }}"
+          - name: updating inventory
+            blockinfile:
+                    path: "/root/Ansible-Docker-Httpd-Dynamic-ContainerIP/hosts"
+                    block: |
+                            [dcont]
+                            {{ container_info['container']['NetworkSettings']['IPAddress'] }} ansible_user=root ansible_ssh_pass=redhat
+                    marker: ""
+- name: "Installing Httpd webserver on container"
+  hosts: dcont
+  tasks:
+          - name: Installing httpd php python
+            yum:
+                    - name:
+                            - httpd
+                            - php
+                            - python
+                      state: latest
+          - name: "Deploying webpages"
+            copy:
+                    src: "/root/Ansible-Docker-Httpd-Dynamic-ContainerIP/webpage"
+                    dest: "/var/www/html"
+            notify:
+                    - restart webserver
+  handlers:
+          - name: "restart webserver"
+            command: "/usr/sbin/httpd"

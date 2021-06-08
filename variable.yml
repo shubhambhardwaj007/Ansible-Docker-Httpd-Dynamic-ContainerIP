@@ -1,0 +1,4 @@
+---
+ssh_enabled_docker_image_name: "test_ssh_image"
+container_name: "docker_container"
+exposed_base_os_port: "1234"
